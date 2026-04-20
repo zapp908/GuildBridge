@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 public class GuildBridgeWebSocket {
-    private static final String WS_URL = "wss://api.zapp908.dev/ws"; // path to ws
+    private static final String WS_URL = "wss://api.zapp908.dev/ws";
     private static WebSocket webSocket;
     private static boolean socketOpen = false;
     private static boolean manuallyClosed = false;
@@ -23,8 +23,6 @@ public class GuildBridgeWebSocket {
     private static final long HEARTBEAT_INTERVAL_MS = 25_000;
     private static Thread heartbeatThread;
 
-
-
     public static void connect() {
         if (webSocket != null) return;
 
@@ -34,7 +32,10 @@ public class GuildBridgeWebSocket {
 
         client.newWebSocketBuilder()
                 .buildAsync(URI.create(WS_URL), new Listener())
-                .thenAccept(ws -> {webSocket = ws; reconnectAttempts = 0;})
+                .thenAccept(ws -> {
+                    webSocket = ws;
+                    reconnectAttempts = 0;
+                })
                 .exceptionally(err -> {
                     err.printStackTrace();
                     scheduleReconnect();
@@ -65,7 +66,8 @@ public class GuildBridgeWebSocket {
         new Thread(() -> {
             try {
                 Thread.sleep(delay);
-            } catch (InterruptedException ignored) {}
+            } catch (InterruptedException ignored) {
+            }
 
             MinecraftClient client = MinecraftClient.getInstance();
             if (client != null) {
@@ -74,10 +76,8 @@ public class GuildBridgeWebSocket {
         }, "GuildBridge-Reconnect").start();
     }
 
-
     public static void sendChat(String message) {
         if (webSocket == null || GuildBridgeAuth.token == null) return;
-
 
         String json = """
                 {
@@ -134,14 +134,13 @@ public class GuildBridgeWebSocket {
                             true
                     );
                 }
-            } catch (InterruptedException ignored) {}
+            } catch (InterruptedException ignored) {
+            }
         }, "GuildBridge-Heartbeat");
 
         heartbeatThread.setDaemon(true);
         heartbeatThread.start();
     }
-
-
 
     private static class Listener implements WebSocket.Listener {
 
@@ -189,8 +188,6 @@ public class GuildBridgeWebSocket {
             scheduleReconnect();
         }
 
-
-
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
             webSocket.request(1);
@@ -200,12 +197,14 @@ public class GuildBridgeWebSocket {
             if (text.contains("\"auth_ok\"")) {
                 GuildBridgeAuth.token = extract(text, "token");
 
-                MinecraftClient.getInstance().execute(() ->
+                MinecraftClient.getInstance().execute(() -> {
+                    if (MinecraftClient.getInstance().player != null) {
                         MinecraftClient.getInstance().player.sendMessage(
                                 Text.literal("GuildBridge connected"),
                                 false
-                        )
-                );
+                        );
+                    }
+                });
             }
 
             if (text.contains("\"type\":\"discord_chat\"")) {
@@ -214,21 +213,22 @@ public class GuildBridgeWebSocket {
                     String message = extract(text, "message");
 
                     MinecraftClient.getInstance().execute(() -> {
-                        if (MinecraftClient.getInstance().player == null) return;
+                        MinecraftClient client = MinecraftClient.getInstance();
+                        if (client.player == null) return;
 
-                        MinecraftClient.getInstance().player.sendMessage(
-                                Text.literal("[Discord] ")
+                        client.player.sendMessage(
+                                Text.literal("[SBZ] ")
                                         .formatted(Formatting.DARK_PURPLE)
                                         .append(Text.literal(author + ": ")
                                                 .formatted(Formatting.AQUA))
                                         .append(Text.literal(message).formatted(Formatting.WHITE)),
                                 false
                         );
+
+                        GuildBridgeClient.relayDiscordMessageToGuildChat(author, message);
                     });
                 }
-
             }
-
 
             return CompletableFuture.completedFuture(null);
         }
