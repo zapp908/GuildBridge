@@ -44,7 +44,12 @@ public class ChatProcessor {
             GuildBridgeWebSocket.sendChat(message);
         }
 
-        if (message.contains("The guild has reached Level") && !message.contains("!")) {
+        if (message.contains("The Guild has reached Level") && !message.contains("!")) {
+            GuildBridgeClient.LOGGER.info("Detected guild event {}", message);
+            GuildBridgeWebSocket.sendChat(message);
+        }
+
+        if (message.contains("was kicked from the guild") && message.contains("!")) {
             GuildBridgeClient.LOGGER.info("Detected guild event {}", message);
             GuildBridgeWebSocket.sendChat(message);
         }
